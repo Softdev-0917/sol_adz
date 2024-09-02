@@ -92,6 +92,23 @@ pub mod sol_adz {
 
         Ok(())
     }
+
+    // manage admin account
+    pub fn add_admin(ctx: Context<AdminAction>, new_admin: Pubkey) -> Result<()> {
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(admin_account.admins.iter().any(|x| *x == *ctx.accounts.admin.key), CustomError::Unauthorized);
+
+        admin_account.admins.push(new_admin);
+        Ok(())
+    }
+
+    pub fn remove_admin(ctx: Context<AdminAction>, admin_to_remove: Pubkey) -> Result<()> {
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(admin_account.admins.iter().any(|x| *x == *ctx.accounts.admin.key), CustomError::Unauthorized);
+
+        admin_account.admins.retain(|&x| x != admin_to_remove);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -149,10 +166,29 @@ pub struct Investment<'info> {
     pub investor: Account<'info, Investor>,
 }
 
+#[derive(Accounts)]
+pub struct AdminAction<'info> {
+    #[account(mut)]
+    pub admin_account: Account<'info, AdminAccount>,
+    /// CHECK: This is checked in the program.
+    pub admin: Signer<'info>,
+}
+
+#[account]
+pub struct AdminAccount {
+    pub admins: Vec<Pubkey>, // You might want to limit the size or manage through a different strategy.
+}
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("The investment amount is below the minimum required for the current cycle.")]
     InvestmentBelowMinimum,
+}
+
+#[error_code]
+pub enum CustomError {
+    #[msg("You are not authorized to perform this action.")]
+    Unauthorized,
 }
 
 // Helper function to update investor rank based on total investment
